@@ -1,0 +1,302 @@
+import React, { useState, useMemo } from "react";
+import { useFavorites } from "@/hooks/useFavorites";
+import { HeaderNavPills, ShellHeader } from "@/app/shell-header";
+import {
+  MBACard,
+  buildModuleCategoryGroups,
+  type ModuleComponentCategory,
+} from "@/components/common/MBACard";
+import { MovedCardsGridItems } from "@/components/common/MovedCardsGridItems";
+import {
+  LauncherPageProvider,
+  adjustCategoryTabsCount,
+  syncLauncherPageBadge,
+  useCardPageMover,
+  useCurrentLauncherPage,
+} from "@/hooks/useCardPageMover";
+import { usePinnedCards, sortCardsWithPinned } from "@/hooks/usePinnedCards";
+import {
+  Home,
+  GitFork,
+  ShieldAlert,
+  Wallet,
+  CheckSquare,
+  Utensils,
+  Car,
+  Search,
+} from "lucide-react";
+
+export type FamilyCategory = "all" | "keluarga" | "rumah-tangga" | "kendaraan";
+
+export interface FamilySubMenu {
+  id: string;
+  label: string;
+  to: string;
+  componentCategory: ModuleComponentCategory;
+}
+
+export interface FamilyAppItem {
+  id: string;
+  name: string;
+  category: "keluarga" | "rumah-tangga" | "kendaraan";
+  categoryLabel: string;
+  shortDesc: string;
+  to: string;
+  icon: React.ComponentType<{ className?: string; size?: number }>;
+  badge: string;
+  accentGradient: string;
+  accentBorder: string;
+  badgeBg: string;
+  badgeText: string;
+  subMenus: FamilySubMenu[];
+}
+
+export const FAMILY_HOUSEHOLD_APPS: FamilyAppItem[] = [
+  // 1. Keluarga (3)
+  {
+    id: "family-heritage",
+    name: "Family Heritage",
+    category: "keluarga",
+    categoryLabel: "Keluarga",
+    shortDesc:
+      "Pusat silsilah garis keturunan keluarga, repositori arsip foto & dokumen bersejarah, kesepakatan tata tertib house rules, serta tradisi leluhur.",
+    to: "/peh/family-tree",
+    icon: GitFork,
+    badge: "Keluarga",
+    accentGradient: "from-rose-500 to-pink-600",
+    accentBorder: "border-rose-500/30 hover:border-rose-500/60",
+    badgeBg: "bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30",
+    badgeText: "Keluarga",
+    subMenus: [
+      { id: "family-tree", label: "Family Tree", to: "/peh/family-tree", componentCategory: "Features" },
+      { id: "house-rules", label: "Household Rules", to: "/lainnya?app=family-rules", componentCategory: "Settings" },
+      { id: "tradisi-keluarga", label: "Family History", to: "/peh/traditions", componentCategory: "Records" },
+    ],
+  },
+  {
+    id: "family-safety",
+    name: "Family Safety",
+    category: "keluarga",
+    categoryLabel: "Keluarga",
+    shortDesc:
+      "Mitigasi keselamatan & siaga krisis keluarga: rekam profil medis alergi/darah, panduan kesiapsiagaan bencana, dan direktori kontak darurat terpadu.",
+    to: "/lainnya?app=emergency-hub",
+    icon: ShieldAlert,
+    badge: "Keluarga",
+    accentGradient: "from-red-500 to-rose-600",
+    accentBorder: "border-red-500/30 hover:border-red-500/60",
+    badgeBg: "bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/30",
+    badgeText: "Keluarga",
+    subMenus: [
+      { id: "emergency-contacts", label: "Emergency Contacts", to: "/lainnya?app=emergency-hub", componentCategory: "Records" },
+      { id: "family-health", label: "Family Health Records", to: "/peh/family-health", componentCategory: "Records" },
+      { id: "disaster-prep", label: "Emergency Preparedness", to: "/lainnya?app=disaster-prep", componentCategory: "Guides" },
+    ],
+  },
+  {
+    id: "household-finance",
+    name: "Household Finance",
+    category: "keluarga",
+    categoryLabel: "Keluarga",
+    shortDesc:
+      "Perencanaan anggaran rumah tangga bersama, dana tabungan pendidikan anak, alokasi pengeluaran bulanan, dan evaluasi penghematan rutin.",
+    to: "/peh/family-budget",
+    icon: Wallet,
+    badge: "Keluarga",
+    accentGradient: "from-emerald-500 to-teal-600",
+    accentBorder: "border-emerald-500/30 hover:border-emerald-500/60",
+    badgeBg: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
+    badgeText: "Keluarga",
+    subMenus: [
+      { id: "family-budget", label: "Family Budget", to: "/peh/family-budget", componentCategory: "Tools" },
+      { id: "monthly-expenses", label: "Expense Tracker", to: "/peh/budget", componentCategory: "Analytics" },
+    ],
+  },
+
+  // 2. Rumah Tangga (2)
+  {
+    id: "household-management",
+    name: "Household Management",
+    category: "rumah-tangga",
+    categoryLabel: "Rumah Tangga",
+    shortDesc:
+      "Jadwal rutin kebersihan hunian, pembagian tugas harian keluarga, perawatan tanaman/kebun, pemeliharaan fisik bangunan, dan perawatan hewan peliharaan.",
+    to: "/peh/chores",
+    icon: CheckSquare,
+    badge: "Rumah Tangga",
+    accentGradient: "from-amber-500 to-orange-600",
+    accentBorder: "border-amber-500/30 hover:border-amber-500/60",
+    badgeBg: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30",
+    badgeText: "Rumah Tangga",
+    subMenus: [
+      { id: "chores-list", label: "Household Chores", to: "/peh/chores", componentCategory: "Workflows" },
+      { id: "home-maintenance", label: "Home Maintenance Log", to: "/peh/maintenance", componentCategory: "Records" },
+      { id: "plants-garden", label: "Garden Management", to: "/peh/plants", componentCategory: "Automations" },
+      { id: "pet-care", label: "Pet Care", to: "/peh/pet-care", componentCategory: "Features" },
+    ],
+  },
+  {
+    id: "kitchen-management",
+    name: "Kitchen Management",
+    category: "rumah-tangga",
+    categoryLabel: "Rumah Tangga",
+    shortDesc:
+      "Inventarisasi stok bahan makanan dapur, panduan resep masakan harian, resep kuliner warisan keluarga, serta daftar belanja kebutuhan pokok supermarket otomatis.",
+    to: "/peh/pantry",
+    icon: Utensils,
+    badge: "Rumah Tangga",
+    accentGradient: "from-orange-500 to-amber-600",
+    accentBorder: "border-orange-500/30 hover:border-orange-500/60",
+    badgeBg: "bg-orange-500/15 text-orange-600 dark:text-orange-400 border-orange-500/30",
+    badgeText: "Rumah Tangga",
+    subMenus: [
+      { id: "pantry-inventory", label: "Pantry Inventory", to: "/peh/pantry", componentCategory: "Records" },
+      { id: "recipes-catalog", label: "Recipe Collection", to: "/recipes", componentCategory: "Guides" },
+      { id: "grocery-list", label: "Grocery List", to: "/shopping", componentCategory: "Workflows" },
+      { id: "family-recipes", label: "Family Recipes", to: "/peh/family-recipes", componentCategory: "Templates" },
+    ],
+  },
+
+  // 3. Kendaraan (1)
+  {
+    id: "vehicle-records",
+    name: "Vehicle Records",
+    category: "kendaraan",
+    categoryLabel: "Kendaraan",
+    shortDesc:
+      "Pencatatan data legalitas STNK/BPKB kendaraan, histori servis berkala ganti oli, serta pemantauan konsumsi bahan bakar dan jarak tempuh.",
+    to: "/peh/vehicles",
+    icon: Car,
+    badge: "Kendaraan",
+    accentGradient: "from-blue-500 to-indigo-600",
+    accentBorder: "border-blue-500/30 hover:border-blue-500/60",
+    badgeBg: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30",
+    badgeText: "Kendaraan",
+    subMenus: [
+      { id: "vehicle-identity", label: "Vehicle Registry", to: "/peh/vehicles", componentCategory: "Records" },
+      { id: "mileage-fuel", label: "Mileage and Fuel Log", to: "/lainnya?app=mileage-fuel", componentCategory: "Analytics" },
+      { id: "service-schedule", label: "Vehicle Maintenance Schedule", to: "/lainnya?app=service-maintenance", componentCategory: "Automations" },
+    ],
+  },
+];
+
+export const FAMILY_CATEGORY_TABS: {
+  id: FamilyCategory;
+  label: string;
+  count: number;
+}[] = [
+  { id: "all", label: "Semua", count: FAMILY_HOUSEHOLD_APPS.length },
+  { id: "keluarga", label: "Keluarga", count: FAMILY_HOUSEHOLD_APPS.filter((a) => a.category === "keluarga").length },
+  { id: "rumah-tangga", label: "Rumah Tangga", count: FAMILY_HOUSEHOLD_APPS.filter((a) => a.category === "rumah-tangga").length },
+  { id: "kendaraan", label: "Kendaraan", count: FAMILY_HOUSEHOLD_APPS.filter((a) => a.category === "kendaraan").length },
+];
+
+export const FAMILY_TOTAL_MODULES = FAMILY_HOUSEHOLD_APPS.length;
+export const FAMILY_TOOLS_COUNT = FAMILY_HOUSEHOLD_APPS.reduce(
+  (sum, app) => sum + app.subMenus.filter((s) => s.componentCategory === "Tools").length,
+  0
+);
+export const FAMILY_FEATURES_COUNT = FAMILY_HOUSEHOLD_APPS.reduce(
+  (sum, app) => sum + app.subMenus.filter((s) => s.componentCategory !== "Tools").length,
+  0
+);
+export const FAMILY_TOTAL_BADGE = `${FAMILY_TOTAL_MODULES} Modul • ${FAMILY_FEATURES_COUNT} Features • ${FAMILY_TOOLS_COUNT} Tools`;
+syncLauncherPageBadge("mode_family", FAMILY_TOTAL_BADGE);
+export const FAMILY_SUMMARY_DESC = FAMILY_CATEGORY_TABS.map(
+  (t) => `${t.label} (${t.count})`
+).join(" · ");
+
+export function FamilyRecordsHouseholdPage({
+  isEmbedded = false,
+}: {
+  isEmbedded?: boolean;
+} = {}) {
+  const [selectedCategory, setSelectedCategory] = useState<FamilyCategory>("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const { isFavorite, toggleFavorite } = useFavorites();
+  const pageId = useCurrentLauncherPage("mode_family") || "mode_family";
+  const { getPageCountDelta, getCardsMovedIntoPage } = useCardPageMover();
+  const { pinnedList } = usePinnedCards(pageId);
+
+  const filteredApps = useMemo(() => {
+    const list = FAMILY_HOUSEHOLD_APPS.filter((app) => {
+      const matchCategory =
+        selectedCategory === "all" || app.category === selectedCategory;
+      const matchSearch =
+        searchQuery.trim() === "" ||
+        app.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        app.shortDesc.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        app.categoryLabel.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        app.subMenus.some((sub) =>
+          sub.label.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+      return matchCategory && matchSearch;
+    });
+    return sortCardsWithPinned(list, (app) => app.to || app.name, pinnedList);
+  }, [selectedCategory, searchQuery, pinnedList]);
+
+  return (
+    <LauncherPageProvider pageId={pageId}>
+    <div className="w-full flex-1 flex flex-col font-sans pb-16">
+      <ShellHeader>
+        <HeaderNavPills
+          items={adjustCategoryTabsCount(FAMILY_CATEGORY_TABS, getPageCountDelta(pageId))}
+          activeId={selectedCategory}
+          onSelect={(id) => setSelectedCategory(id as any)}
+        />
+      </ShellHeader>
+
+      <div className="w-full mx-auto pt-3 sm:pt-4 space-y-3 sm:space-y-4">
+        <div className="text-center">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground/90 tracking-tight flex items-center justify-center gap-2.5">
+            <span>Family Records and Household Planning</span>
+          </h1>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4.5 sm:gap-5">
+          {filteredApps.map((app) => (
+            <MBACard
+              key={app.id}
+              title={app.name}
+              to={app.to}
+              icon={app.icon}
+              badge={app.badgeText}
+              shortDesc={app.shortDesc}
+              accentGradient={app.accentGradient}
+              features={app.subMenus.map((sub) => ({
+                title: sub.label,
+                to: sub.to || app.to,
+              }))}
+              categoryGroups={buildModuleCategoryGroups(app.subMenus, app.to)}
+              isFav={isFavorite(app.to)}
+              toggleFavorite={toggleFavorite}
+            />
+          ))}
+          {selectedCategory === "all" && (
+            <MovedCardsGridItems pageId={pageId} searchQuery={searchQuery} />
+          )}
+        </div>
+
+        {filteredApps.length === 0 &&
+          (selectedCategory !== "all" || getCardsMovedIntoPage(pageId).length === 0) && (
+          <div className="text-center py-16 rounded-3xl border border-dashed border-border p-8 bg-card/40">
+            <Search className="size-8 text-muted-foreground mx-auto mb-3 opacity-60" />
+            <h3 className="text-base font-semibold text-foreground">
+              Tidak ada modul keluarga ditemukan
+            </h3>
+            <button
+              onClick={() => {
+                setSelectedCategory("all");
+                setSearchQuery("");
+              }}
+              className="mt-4 px-4 py-2 bg-primary/10 text-primary hover:bg-primary/20 rounded-xl text-xs font-semibold transition-colors"
+            >
+              Reset Filter
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+    </LauncherPageProvider>
+  );
+}
