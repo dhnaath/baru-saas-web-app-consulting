@@ -436,7 +436,7 @@ const CATEGORY_DESCRIPTIONS: Record<string, string> = {
     "Komunikasi krisis korporat dan manajemen pemangku kepentingan.",
 };
 
-// 17 Standalone Apps (The 17 Categories) with all their sub-features inside them
+// 21 Standalone Apps (The 21 Categories) with all their sub-features inside them
 export const STANDALONE_MBA_APPS: StandaloneMBAAppDef[] = CATEGORIES.map((cat) => {
   const CatIcon = getCategoryIcon(cat.name);
   const slug = slugify(cat.name);
